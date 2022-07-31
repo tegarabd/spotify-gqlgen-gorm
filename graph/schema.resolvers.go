@@ -9,6 +9,11 @@ import (
 	"spotify/graph/model"
 )
 
+// Songs is the resolver for the songs field.
+func (r *artistResolver) Songs(ctx context.Context, obj *model.Artist) ([]*model.Song, error) {
+	return r.DB.GetSongsByArtist(obj), nil
+}
+
 // AddSong is the resolver for the addSong field.
 func (r *mutationResolver) AddSong(ctx context.Context, input model.NewSong) (*model.Song, error) {
 	return r.DB.AddSong(input), nil
@@ -44,11 +49,24 @@ func (r *queryResolver) GetUsers(ctx context.Context) ([]*model.User, error) {
 	return r.DB.GetUsers(), nil
 }
 
+// Artist is the resolver for the artist field.
+func (r *songResolver) Artist(ctx context.Context, obj *model.Song) (*model.Artist, error) {
+	return r.DB.GetArtistBySong(obj), nil
+}
+
+// Artist returns generated.ArtistResolver implementation.
+func (r *Resolver) Artist() generated.ArtistResolver { return &artistResolver{r} }
+
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// Song returns generated.SongResolver implementation.
+func (r *Resolver) Song() generated.SongResolver { return &songResolver{r} }
+
+type artistResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type songResolver struct{ *Resolver }

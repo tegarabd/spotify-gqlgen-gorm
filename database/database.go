@@ -82,6 +82,16 @@ func (database *Database) GetArtist(id int) *model.Artist {
 	return artist
 }
 
+func (database *Database) GetArtistBySong(song *model.Song) *model.Artist {
+	songDB := &Song{}
+	database.DB.Model(songDB).Preload("Artist").First(songDB, song.ID)
+
+	artistDB := &songDB.Artist
+	artist := &model.Artist{}
+	utility.Recast(artistDB, artist)
+	return artist
+}
+
 func (database *Database) GetArtists() []*model.Artist {
 	artistsDB := []*Artist{}
 	database.DB.Model(&Artist{}).Preload("Songs").Find(&artistsDB)
@@ -107,6 +117,16 @@ func (database *Database) GetSongs() []*model.Song {
 	songsDB := []*Song{}
 	database.DB.Model(&Song{}).Preload("Artist").Find(&songsDB)
 
+	songs := []*model.Song{}
+	utility.Recast(&songsDB, &songs)
+	return songs
+}
+
+func (database *Database) GetSongsByArtist(artist *model.Artist) []*model.Song {
+	artistDB := &Artist{}
+	database.DB.Model(artistDB).Preload("Songs").First(artistDB, artist.ID)
+
+	songsDB := artistDB.Songs
 	songs := []*model.Song{}
 	utility.Recast(&songsDB, &songs)
 	return songs

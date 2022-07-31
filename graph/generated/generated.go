@@ -36,8 +36,10 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	Artist() ArtistResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
+	Song() SongResolver
 }
 
 type DirectiveRoot struct {
@@ -77,6 +79,9 @@ type ComplexityRoot struct {
 	}
 }
 
+type ArtistResolver interface {
+	Songs(ctx context.Context, obj *model.Artist) ([]*model.Song, error)
+}
 type MutationResolver interface {
 	AddSong(ctx context.Context, input model.NewSong) (*model.Song, error)
 	AddArtist(ctx context.Context, input model.NewArtist) (*model.Artist, error)
@@ -87,6 +92,9 @@ type QueryResolver interface {
 	GetSongs(ctx context.Context) ([]*model.Song, error)
 	GetArtists(ctx context.Context) ([]*model.Artist, error)
 	GetUsers(ctx context.Context) ([]*model.User, error)
+}
+type SongResolver interface {
+	Artist(ctx context.Context, obj *model.Song) (*model.Artist, error)
 }
 
 type executableSchema struct {
@@ -592,7 +600,7 @@ func (ec *executionContext) _Artist_songs(ctx context.Context, field graphql.Col
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Songs, nil
+		return ec.resolvers.Artist().Songs(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -613,8 +621,8 @@ func (ec *executionContext) fieldContext_Artist_songs(ctx context.Context, field
 	fc = &graphql.FieldContext{
 		Object:     "Artist",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
@@ -1275,7 +1283,7 @@ func (ec *executionContext) _Song_artist(ctx context.Context, field graphql.Coll
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Artist, nil
+		return ec.resolvers.Song().Artist(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1296,8 +1304,8 @@ func (ec *executionContext) fieldContext_Song_artist(ctx context.Context, field 
 	fc = &graphql.FieldContext{
 		Object:     "Song",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
@@ -3429,22 +3437,35 @@ func (ec *executionContext) _Artist(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = ec._Artist_id(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "name":
 
 			out.Values[i] = ec._Artist_name(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "songs":
+			field := field
 
-			out.Values[i] = ec._Artist_songs(ctx, field, obj)
-
-			if out.Values[i] == graphql.Null {
-				invalids++
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Artist_songs(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
 			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return innerFunc(ctx)
+
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3648,22 +3669,35 @@ func (ec *executionContext) _Song(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._Song_id(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "name":
 
 			out.Values[i] = ec._Song_name(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "artist":
+			field := field
 
-			out.Values[i] = ec._Song_artist(ctx, field, obj)
-
-			if out.Values[i] == graphql.Null {
-				invalids++
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Song_artist(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
 			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return innerFunc(ctx)
+
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4116,12 +4150,12 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 }
 
 func (ec *executionContext) unmarshalNID2int(ctx context.Context, v interface{}) (int, error) {
-	res, err := graphql.UnmarshalInt(v)
+	res, err := graphql.UnmarshalIntID(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNID2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
-	res := graphql.MarshalInt(v)
+	res := graphql.MarshalIntID(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
