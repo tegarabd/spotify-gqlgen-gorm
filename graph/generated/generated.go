@@ -51,9 +51,10 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddArtist func(childComplexity int, input model.NewArtist) int
-		AddSong   func(childComplexity int, input model.NewSong) int
-		AddUser   func(childComplexity int, input model.NewUser) int
+		AddArtist           func(childComplexity int, input model.NewArtist) int
+		AddSong             func(childComplexity int, input model.NewSong) int
+		AddUser             func(childComplexity int, input model.NewUser) int
+		AddUserFavoriteSong func(childComplexity int, input model.NewUserFavoriteSong) int
 	}
 
 	Query struct {
@@ -63,15 +64,16 @@ type ComplexityRoot struct {
 	}
 
 	Song struct {
-		Artist   func(childComplexity int) int
-		ArtistID func(childComplexity int) int
-		ID       func(childComplexity int) int
-		Name     func(childComplexity int) int
+		Artist func(childComplexity int) int
+		ID     func(childComplexity int) int
+		Name   func(childComplexity int) int
 	}
 
 	User struct {
-		ID   func(childComplexity int) int
-		Name func(childComplexity int) int
+		Email         func(childComplexity int) int
+		FavoriteSongs func(childComplexity int) int
+		ID            func(childComplexity int) int
+		Name          func(childComplexity int) int
 	}
 }
 
@@ -79,6 +81,7 @@ type MutationResolver interface {
 	AddSong(ctx context.Context, input model.NewSong) (*model.Song, error)
 	AddArtist(ctx context.Context, input model.NewArtist) (*model.Artist, error)
 	AddUser(ctx context.Context, input model.NewUser) (*model.User, error)
+	AddUserFavoriteSong(ctx context.Context, input model.NewUserFavoriteSong) (*model.User, error)
 }
 type QueryResolver interface {
 	GetSongs(ctx context.Context) ([]*model.Song, error)
@@ -158,6 +161,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.AddUser(childComplexity, args["input"].(model.NewUser)), true
 
+	case "Mutation.addUserFavoriteSong":
+		if e.complexity.Mutation.AddUserFavoriteSong == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addUserFavoriteSong_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddUserFavoriteSong(childComplexity, args["input"].(model.NewUserFavoriteSong)), true
+
 	case "Query.getArtists":
 		if e.complexity.Query.GetArtists == nil {
 			break
@@ -186,13 +201,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Song.Artist(childComplexity), true
 
-	case "Song.artistId":
-		if e.complexity.Song.ArtistID == nil {
-			break
-		}
-
-		return e.complexity.Song.ArtistID(childComplexity), true
-
 	case "Song.id":
 		if e.complexity.Song.ID == nil {
 			break
@@ -206,6 +214,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Song.Name(childComplexity), true
+
+	case "User.email":
+		if e.complexity.User.Email == nil {
+			break
+		}
+
+		return e.complexity.User.Email(childComplexity), true
+
+	case "User.favoriteSongs":
+		if e.complexity.User.FavoriteSongs == nil {
+			break
+		}
+
+		return e.complexity.User.FavoriteSongs(childComplexity), true
 
 	case "User.id":
 		if e.complexity.User.ID == nil {
@@ -232,6 +254,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputNewArtist,
 		ec.unmarshalInputNewSong,
 		ec.unmarshalInputNewUser,
+		ec.unmarshalInputNewUserFavoriteSong,
 	)
 	first := true
 
@@ -299,6 +322,8 @@ var sources = []*ast.Source{
 type User {
   id: ID!
   name: String!
+  email: String!
+  favoriteSongs: [Song!]!
 }
 
 type Artist {
@@ -310,7 +335,6 @@ type Artist {
 type Song {
   id: ID!
   name: String!
-  artistId: ID!
   artist: Artist!
 }
 
@@ -331,12 +355,19 @@ input NewArtist {
 
 input NewUser {
   name: String!
+  email: String!
+}
+
+input NewUserFavoriteSong {
+  userId: ID!
+  songId: ID!
 }
 
 type Mutation {
   addSong(input: NewSong!): Song!
   addArtist(input: NewArtist!): Artist!
   addUser(input: NewUser!): User!
+  addUserFavoriteSong(input: NewUserFavoriteSong!): User!
 }
 `, BuiltIn: false},
 }
@@ -368,6 +399,21 @@ func (ec *executionContext) field_Mutation_addSong_args(ctx context.Context, raw
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 		arg0, err = ec.unmarshalNNewSong2spotifyᚋgraphᚋmodelᚐNewSong(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_addUserFavoriteSong_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NewUserFavoriteSong
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNNewUserFavoriteSong2spotifyᚋgraphᚋmodelᚐNewUserFavoriteSong(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -575,8 +621,6 @@ func (ec *executionContext) fieldContext_Artist_songs(ctx context.Context, field
 				return ec.fieldContext_Song_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Song_name(ctx, field)
-			case "artistId":
-				return ec.fieldContext_Song_artistId(ctx, field)
 			case "artist":
 				return ec.fieldContext_Song_artist(ctx, field)
 			}
@@ -629,8 +673,6 @@ func (ec *executionContext) fieldContext_Mutation_addSong(ctx context.Context, f
 				return ec.fieldContext_Song_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Song_name(ctx, field)
-			case "artistId":
-				return ec.fieldContext_Song_artistId(ctx, field)
 			case "artist":
 				return ec.fieldContext_Song_artist(ctx, field)
 			}
@@ -757,6 +799,10 @@ func (ec *executionContext) fieldContext_Mutation_addUser(ctx context.Context, f
 				return ec.fieldContext_User_id(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
+			case "favoriteSongs":
+				return ec.fieldContext_User_favoriteSongs(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -769,6 +815,71 @@ func (ec *executionContext) fieldContext_Mutation_addUser(ctx context.Context, f
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_addUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_addUserFavoriteSong(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_addUserFavoriteSong(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddUserFavoriteSong(rctx, fc.Args["input"].(model.NewUserFavoriteSong))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖspotifyᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_addUserFavoriteSong(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
+			case "favoriteSongs":
+				return ec.fieldContext_User_favoriteSongs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_addUserFavoriteSong_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return
 	}
@@ -818,8 +929,6 @@ func (ec *executionContext) fieldContext_Query_getSongs(ctx context.Context, fie
 				return ec.fieldContext_Song_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Song_name(ctx, field)
-			case "artistId":
-				return ec.fieldContext_Song_artistId(ctx, field)
 			case "artist":
 				return ec.fieldContext_Song_artist(ctx, field)
 			}
@@ -924,6 +1033,10 @@ func (ec *executionContext) fieldContext_Query_getUsers(ctx context.Context, fie
 				return ec.fieldContext_User_id(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
+			case "favoriteSongs":
+				return ec.fieldContext_User_favoriteSongs(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -1148,50 +1261,6 @@ func (ec *executionContext) fieldContext_Song_name(ctx context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Song_artistId(ctx context.Context, field graphql.CollectedField, obj *model.Song) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Song_artistId(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ArtistID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNID2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Song_artistId(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Song",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Song_artist(ctx context.Context, field graphql.CollectedField, obj *model.Song) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Song_artist(ctx, field)
 	if err != nil {
@@ -1327,6 +1396,102 @@ func (ec *executionContext) fieldContext_User_name(ctx context.Context, field gr
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_email(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_email(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Email, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_email(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_favoriteSongs(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_favoriteSongs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FavoriteSongs, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Song)
+	fc.Result = res
+	return ec.marshalNSong2ᚕᚖspotifyᚋgraphᚋmodelᚐSongᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_favoriteSongs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Song_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Song_name(ctx, field)
+			case "artist":
+				return ec.fieldContext_Song_artist(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Song", field.Name)
 		},
 	}
 	return fc, nil
@@ -3176,7 +3341,7 @@ func (ec *executionContext) unmarshalInputNewUser(ctx context.Context, obj inter
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name"}
+	fieldsInOrder := [...]string{"name", "email"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -3188,6 +3353,50 @@ func (ec *executionContext) unmarshalInputNewUser(ctx context.Context, obj inter
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "email":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
+			it.Email, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputNewUserFavoriteSong(ctx context.Context, obj interface{}) (model.NewUserFavoriteSong, error) {
+	var it model.NewUserFavoriteSong
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"userId", "songId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "userId":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+			it.UserID, err = ec.unmarshalNID2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "songId":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("songId"))
+			it.SongID, err = ec.unmarshalNID2int(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3288,6 +3497,15 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_addUser(ctx, field)
+			})
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "addUserFavoriteSong":
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_addUserFavoriteSong(ctx, field)
 			})
 
 			if out.Values[i] == graphql.Null {
@@ -3439,13 +3657,6 @@ func (ec *executionContext) _Song(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "artistId":
-
-			out.Values[i] = ec._Song_artistId(ctx, field, obj)
-
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "artist":
 
 			out.Values[i] = ec._Song_artist(ctx, field, obj)
@@ -3484,6 +3695,20 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 		case "name":
 
 			out.Values[i] = ec._User_name(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "email":
+
+			out.Values[i] = ec._User_email(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "favoriteSongs":
+
+			out.Values[i] = ec._User_favoriteSongs(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
 				invalids++
@@ -3917,6 +4142,11 @@ func (ec *executionContext) unmarshalNNewSong2spotifyᚋgraphᚋmodelᚐNewSong(
 
 func (ec *executionContext) unmarshalNNewUser2spotifyᚋgraphᚋmodelᚐNewUser(ctx context.Context, v interface{}) (model.NewUser, error) {
 	res, err := ec.unmarshalInputNewUser(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNNewUserFavoriteSong2spotifyᚋgraphᚋmodelᚐNewUserFavoriteSong(ctx context.Context, v interface{}) (model.NewUserFavoriteSong, error) {
+	res, err := ec.unmarshalInputNewUserFavoriteSong(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

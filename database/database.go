@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"spotify/graph/model"
+	"spotify/utility"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -30,7 +31,7 @@ func Connect() *Database {
 		log.Panic(err)
 	}
 
-	db.AutoMigrate(&model.Artist{}, &model.Song{}, &model.User{})
+	db.AutoMigrate(&Artist{}, &Song{}, &User{})
 
 	return &Database{
 		DB: db,
@@ -38,52 +39,88 @@ func Connect() *Database {
 }
 
 func (database *Database) GetUsers() []*model.User  {
+	usersDB := []*User{}
+	database.DB.Model(&User{}).Preload("FavoriteSongs").Find(&usersDB)
+
 	users := []*model.User{}
-	database.DB.Find(&users)
+	utility.Recast(&usersDB, &users)
 	return users
 }
 
 func (database *Database) AddUser(input model.NewUser) *model.User {
-	user := &model.User{
+	userDB := &User{
 		Name: input.Name,
+		Email: input.Email,
 	}
-	database.DB.Create(user)
+	database.DB.Create(userDB)
+
+	user := &model.User{}
+	utility.Recast(userDB, user)
+	return user
+}
+
+func (database *Database) AddUserFavoriteSong(input model.NewUserFavoriteSong) *model.User {
+	userDB := &User{}
+	database.DB.Model(userDB).Preload("FavoriteSongs").First(userDB, input.UserID)
+
+	songDB := &Song{}
+	database.DB.Model(songDB).Preload("Artist").First(songDB, input.SongID)
+
+	database.DB.Model(userDB).Association("FavoriteSongs").Append(songDB)
+
+	user := &model.User{}
+	utility.Recast(userDB, user)
 	return user
 }
 
 func (database *Database) GetArtist(id int) *model.Artist {
+	artistDB := &Artist{}
+	database.DB.Model(&Artist{}).Preload("Songs").First(artistDB, id)
+
 	artist := &model.Artist{}
-	database.DB.Model(&model.Artist{}).Preload("Songs").First(artist, id)
+	utility.Recast(artistDB, artist)
 	return artist
 }
 
 func (database *Database) GetArtists() []*model.Artist {
+	artistsDB := []*Artist{}
+	database.DB.Model(&Artist{}).Preload("Songs").Find(&artistsDB)
+
 	artists := []*model.Artist{}
-	database.DB.Model(&model.Artist{}).Preload("Songs").Find(&artists)
+	utility.Recast(&artistsDB, &artists)
 	return artists
 }
 
 func (database *Database) AddArtist(input model.NewArtist) *model.Artist {
-	artist := &model.Artist{
+	artistDB := &Artist{
 		Name:  input.Name,
-		Songs: []*model.Song{},
+		Songs: []*Song{},
 	}
-	database.DB.Create(artist)
+	database.DB.Create(artistDB)
+
+	artist := &model.Artist{}
+	utility.Recast(artistDB, artist)
 	return artist
 }
 
 func (database *Database) GetSongs() []*model.Song {
+	songsDB := []*Song{}
+	database.DB.Model(&Song{}).Preload("Artist").Find(&songsDB)
+
 	songs := []*model.Song{}
-	database.DB.Model(&model.Song{}).Preload("Artist").Find(&songs)
+	utility.Recast(&songsDB, &songs)
 	return songs
 }
 
 func (database *Database) AddSong(input model.NewSong) *model.Song {
-	song := &model.Song{
-		Name:     input.Name,
+	songDB := &Song{
+		Name:   input.Name,
 		ArtistID: input.ArtistID,
-		Artist: database.GetArtist(input.ArtistID),
 	}
-	database.DB.Create(song)
+	database.DB.Create(songDB)
+	database.DB.Model(&Song{}).Preload("Artist").Find(songDB)
+
+	song := &model.Song{}
+	utility.Recast(songDB, song)
 	return song
 }

@@ -24,6 +24,11 @@ func (r *mutationResolver) AddUser(ctx context.Context, input model.NewUser) (*m
 	return r.DB.AddUser(input), nil
 }
 
+// AddUserFavoriteSong is the resolver for the addUserFavoriteSong field.
+func (r *mutationResolver) AddUserFavoriteSong(ctx context.Context, input model.NewUserFavoriteSong) (*model.User, error) {
+	return r.DB.AddUserFavoriteSong(input), nil
+}
+
 // GetSongs is the resolver for the getSongs field.
 func (r *queryResolver) GetSongs(ctx context.Context) ([]*model.Song, error) {
 	return r.DB.GetSongs(), nil
@@ -47,4 +52,3 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-

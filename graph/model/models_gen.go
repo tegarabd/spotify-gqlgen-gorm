@@ -18,17 +18,24 @@ type NewSong struct {
 }
 
 type NewUser struct {
-	Name string `json:"name"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+type NewUserFavoriteSong struct {
+	UserID int `json:"userId"`
+	SongID int `json:"songId"`
 }
 
 type Song struct {
-	ID       int     `json:"id"`
-	Name     string  `json:"name"`
-	ArtistID int     `json:"artistId"`
-	Artist   *Artist `json:"artist"`
+	ID     int     `json:"id"`
+	Name   string  `json:"name"`
+	Artist *Artist `json:"artist"`
 }
 
 type User struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID            int     `json:"id"`
+	Name          string  `json:"name"`
+	Email         string  `json:"email"`
+	FavoriteSongs []*Song `json:"favoriteSongs"`
 }

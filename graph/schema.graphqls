@@ -5,6 +5,8 @@
 type User {
   id: ID!
   name: String!
+  email: String!
+  favoriteSongs: [Song!]!
 }
 
 type Artist {
@@ -16,7 +18,6 @@ type Artist {
 type Song {
   id: ID!
   name: String!
-  artistId: ID!
   artist: Artist!
 }
 
@@ -37,10 +38,17 @@ input NewArtist {
 
 input NewUser {
   name: String!
+  email: String!
+}
+
+input NewUserFavoriteSong {
+  userId: ID!
+  songId: ID!
 }
 
 type Mutation {
   addSong(input: NewSong!): Song!
   addArtist(input: NewArtist!): Artist!
   addUser(input: NewUser!): User!
+  addUserFavoriteSong(input: NewUserFavoriteSong!): User!
 }
